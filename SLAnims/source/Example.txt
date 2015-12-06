@@ -1,0 +1,132 @@
+#
+# This directory should contain the *.py files describing your animation metadata.
+#
+# Only files ending in *.py will be processed by SLAnimGenerate.py
+# This file serves to document the file format.  Since it ends in *.txt, it won't be processed.
+#
+# Lines starting with "#" are comments
+#
+
+# The name to use when displaying this animation category in the
+# mod configuration menu (MCM).
+#
+# If not specified, it will be taken from the source file name
+# (e.g. "YourAnimations.py" --> "YourAnimations")
+mcm_name = "Super Cool"
+
+# This optional setting specifies what subdirectory the animations
+# can be found in.  Animations should be located at
+#   Data\meshes\actors\character\animations\<anim_dir>\
+#
+# If not specified, it will be taken from the source file name
+# (e.g. "YourAnimations.py" --> "YourAnimations")
+anim_dir("SuperCool")
+
+# Prepend "SC_" to all animation IDs in this file.
+# This helps make sure animation IDs from this file won't conflict
+# with IDs from other categories.
+#
+# Note that anim_dir(), anim_id_prefix(), anim_name_prefix(), and common_tags()
+# only affects Animations defined below them in the file.
+# (You can call them again later if you want to change the settings for
+# subsequent animations defined after the new calls.)
+anim_id_prefix("SC_")
+
+# Prepend "Super Cool " to all the animations defined after this point
+anim_name_prefix("Super Cool ")
+
+# Add "SuperCool" to the tags for all animations defined after this point
+common_tags("SuperCool")
+
+# Animation fields
+# - id:
+#   The internal ID to use for registering the animation with SexLab.
+#   This ID must match the animation file names in the
+#   meshes/actors/.../animations directories.
+#   For example, if the id is "MyCoolAnimation", the animation file names
+#   should be MyCoolAnimation_A1_S1.hkx, MyCoolAnimation_A1_S2.hkx, etc.
+#
+# - name
+#   The animation name that will be displayed to users in SexLab and MCM menus
+#
+# - tags
+#   Tags defined for this animation.
+#
+# - sound
+#   The sound effect to use for this animation:
+#   Allowed values:
+#   - Squishing
+#   - Squirting
+#   - Sucking
+#   - SexMix
+#   - NoSound
+#
+# - actor1, actor2, actor3, actor4, actor5
+#   Actor definitions.  Possible values:
+#   - Male, Female, CreatureMale, CreatureFemale
+#
+#   Female and CreatureFemale actors accept an add_cum argument describing what
+#   cum settings should be applied for this animation.  Allowed add_cum values:
+#   - Vaginal, Oral, Anal, VaginalOral, VaginalAnal, OralAnal, VaginalOralAnal
+#
+#   CreatureMale and CreatureFemale actors require a "race" argument specifying
+#   the creature race.  Examples of valid races include Draugrs, Horses,
+#   SabreCats, Trolls, etc.
+#
+#   Actor objects can also accept any stage parameter applicable to the
+#   a1_stage_params arguments below.  Stage parameters specified in the actor
+#   object will be applied to all of that actor's stages, unless overridden by
+#   an specific stage parameter in aX_stage_params.
+#
+# - a1_stage_params, a2_stage_params, etc.
+#
+#   Parameters for specific stage animations for the specified actor.
+#   For example, a1_stage_params=[Stage(2, silent=true)]
+#   specifies that actor1 should be silent during stage 2.
+#
+#   If you want a setting to apply to all stages for an actor, you can also
+#   pass the setting as an argument to the Actor object.  For instance,
+#   Male(silent=True) will make that actor silent for all stages (except stages
+#   that are explicitly overridden with a Stage parameter setting silent=False
+#   again for that stage).
+#
+#   Stage parameters:
+#   - forward : Move the actor forward by the specified amount
+#   - side : Move the actor to the side by the specified amount
+#   - up : Move the actor up by the specified amount
+#   - rotate : Rotate the actor by the given number of degrees
+#   - silent : True / False
+#   - open_mouth : True / False
+#   - sos : integer setting
+#
+
+Animation(
+    id="SuckAndFuck",
+    name="Suck and Fuck",
+    tags="Dirty,Sex,Oral,Vaginal,MF",
+    sound=Squishing,
+    actor1=Female(add_cum=VaginalOral),
+    actor2=Male(),
+    a1_stage_params = [
+        Stage(1, silent=True, open_mouth=True),
+        Stage(2, silent=True, open_mouth=True),
+    ],
+)
+
+Animation(
+    id="PilloryDoggy",
+    name="Pillory Doggy",
+    tags="Sex,Dirty,Furniture,AnimObject,Vaginal,Doggy,Doggystyle,MF",
+    sound=Squishing,
+    actor1=Female(add_cum=Vaginal),
+    actor2=Male(object="AOZaZPunishmentPillory"),
+)
+
+Animation(
+    id="DraugrSex",
+    name="Draugr Sex",
+    tags="Necro,Forced,Creature,Draugr,Bestiality,Dirty,Aggressive,AggressiveDefault,Rough,Vaginal,Doggy",
+    sound="Squishing",
+    actor1=Female(add_cum=Vaginal),
+    actor2=CreatureMale(race="Draugrs"),
+)
