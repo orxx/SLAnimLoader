@@ -168,6 +168,10 @@ class Category(object):
         self.mcm_name = name
         self.anim_dir = name
 
+        # The Example.txt sample file sets is_example to true.
+        # We skip any file with is_example set when processing files.
+        self.is_example = False
+
         self.errors = []
         self.anim_errors = 0
         self.anims = []
@@ -246,6 +250,8 @@ class Category(object):
         mcm_name = local_vars.get("mcm_name")
         if mcm_name is not None:
             cat.mcm_name = mcm_name
+
+        cat.is_example = local_vars.get("is_example", False)
 
         cat.load_stages()
         cat.anim_errors = sum(1 for a in cat.anims if a.errors)
@@ -1140,9 +1146,11 @@ class GUI(object):
         if cat.json == cat.old_json:
             self._log("JSON output up-to-date: {}", cat.relpath(cat.json_path))
         elif not cat.old_json:
-            self._log("JSON needs to be generated: {}", cat.relpath(cat.json_path))
+            self._log("JSON needs to be generated: {}",
+                      cat.relpath(cat.json_path))
         else:
-            self._log("JSON needs to be regenerated: {}", cat.relpath(cat.json_path))
+            self._log("JSON needs to be regenerated: {}",
+                      cat.relpath(cat.json_path))
             lines = _format_json_diff(cat.old_json, cat.json)
             for l in lines:
                 self._log("  " + l)
@@ -1232,7 +1240,8 @@ class GUI(object):
         self._clear_log()
         self._log("=== Build Logs ===")
         try:
-            fnis_changed = any(bool(cat.fnis_changed) for cat in self.categories)
+            fnis_changed = any(bool(cat.fnis_changed)
+                               for cat in self.categories)
             for cat in self.categories:
                 self._build_category(cat)
         except:
@@ -1326,6 +1335,8 @@ class GUI(object):
 
             entry_path = os.path.join(src_dir, entry)
             cat = Category.load(entry_path)
+            if cat.is_example:
+                continue
             if cat.name == old_cat_name:
                 new_cat_idx = len(self.categories)
             self.categories.append(cat)
@@ -1395,9 +1406,6 @@ def _is_source_file(entry):
     # executed with python by default.  Users will generally want to edit these
     # files, not run them directly with python.
     if entry.endswith(".txt"):
-        # Skip our sample Example.txt file.
-        if entry.lower == "example.txt":
-            return False
         return True
     return False
 
@@ -1412,6 +1420,9 @@ def process_dir(path):
         entry_path = os.path.join(src_dir, entry)
         print("Processing {}".format(entry))
         cat = Category.load(entry_path)
+        if cat.is_example:
+            print("skipping example entry")
+            continue
         cat.save_all()
 
 

@@ -1,8 +1,13 @@
 #
-# This directory should contain the *.py files describing your animation metadata.
+# This directory should contain the *.txt files describing your animation
+# metadata.
 #
-# Only files ending in *.py will be processed by SLAnimGenerate.py
-# This file serves to document the file format.  Since it ends in *.txt, it won't be processed.
+# Only files ending in *.txt or *.py will be processed by SLAnimGenerate.py
+# This file serves to document the file format.  The following line tells
+# SLAnimGenerate.py to ignore this file (since it is just an example and
+# there aren't any real animation files for it).
+is_example = True
+
 #
 # Lines starting with "#" are comments
 #
