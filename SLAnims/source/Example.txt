@@ -2,10 +2,12 @@
 # This directory should contain the *.txt files describing your animation
 # metadata.
 #
-# Only files ending in *.txt or *.py will be processed by SLAnimGenerate.py
+# Only files ending in *.txt or *.py will be processed by SLAnimGenerate.pyw
 # This file serves to document the file format.  The following line tells
-# SLAnimGenerate.py to ignore this file (since it is just an example and
+# SLAnimGenerate.pyw to ignore this file (since it is just an example and
 # there aren't any real animation files for it).
+# !! If you copy Example.txt to start your own animation pack, make sure to
+# remove the following line, or SLAnimGenerate.pyw will ignore your new file !!
 is_example = True
 
 #
