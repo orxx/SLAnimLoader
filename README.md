@@ -22,10 +22,10 @@ Therefore SLAnimLoader supports building the JSON data from source files in
 Data/SLAnims/source/.
 
 Data/SLAnims/source/Example.txt contains a brief overview of the syntax of the
-source files.  The source files will only be processed if they end in "*.py".
-You can rename Example.txt to Example.py if you want to play around with it in
-SLAnimGenerate.py, but there aren't any actual animation files associated with
-it, so no animation stages will be found.
+source files.  The Example.txt file itself will be automatically skipped by
+SLAnimGenerate.  You can rename it to something else if you want to play around
+with it in SLAnimGenerate, but there aren't any actual animation files
+associated with it, so no animation stages will be found.
 
 
 Setting up your Source file and Animation files
@@ -33,7 +33,7 @@ Setting up your Source file and Animation files
 
 You will generally want to group all of your animations into a single category.
 Pick a name for your category, and create a source file with that name.  For
-example, Data\SLAnims\source\YourCategory.py
+example, Data\SLAnims\source\YourCategory.txt
 
 Now put your *.hkx animation files into into the directory
 meshes\actors\characters\animations\YourCategory\.  Animations for creatures
@@ -44,7 +44,7 @@ You will have one *.hkx for each stage of each actor.  Your files should be
 named AnimName_A1_S1.hkx for the 1st actors 1st stage, AnimName_A2_S3.hkx for
 the 2nd actor's 3rd stage, etc.
 
-In the YourCategory.py source file, add a new Animation() statement for your
+In the YourCategory.txt source file, add a new Animation() statement for your
 animation.  The "id" field must match the name of your animation files.  e.g.,
 put id="Foo" if your files are Foo_A1_S1.hkx, Foo_A1_S2.hkx, etc.
 
