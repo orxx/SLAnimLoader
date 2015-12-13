@@ -156,6 +156,10 @@ function OnRegisterAnim(int id, string animID)
 
     ; TODO: SetBedOffsets(float forward, float sideward, float upward, float rotate)
 
+    string tags = JMap.getStr(animInfo, "tags")
+    verboseMsg("  Tags = " + anim.SoundFX)
+    anim.SetTags(tags)
+
     anim.Save(id)
 endFunction
 
