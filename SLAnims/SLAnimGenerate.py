@@ -184,8 +184,6 @@ class Category(object):
         # and the main data directory.
         src_dir, base = os.path.split(path)
         cat_name, ext = os.path.splitext(base)
-        if ext != ".py":
-            raise Exception("source files must end in .py")
         parts = os.path.abspath(src_dir).split(os.path.sep)
         if len(parts) < 2 or parts[-2].lower() != "slanims":
             raise Exception(r"source files should be inside an "
@@ -956,6 +954,9 @@ class GUI(object):
         self.master = master
         self.prefs_path = prefs_path
 
+        self.first_focus = True
+        self.master.bind("<FocusIn>", self.on_focus)
+
         # TODO: It would be nice to save the window size in the prefs,
         # and start with the size loaded from prefs.
         self.prefs = self._load_prefs()
@@ -1053,6 +1054,22 @@ class GUI(object):
         self.quit.pack(side=tkinter.LEFT, padx=5)
         pad = tkinter.Frame(frame)
         pad.pack(side=tkinter.LEFT, fill=tkinter.X, expand=True)
+
+    def on_focus(self, event):
+        if event.widget != self.master:
+            return
+        # on_focus() will be called once when the window is initially drawn.
+        # Don't bother reloading the data then.
+        if self.first_focus:
+            self.first_focus = False
+            return
+
+        # Reload the JSON data whenever the main window gets focus again.
+        # This just makes things easier when switching back and forth
+        # between a text editor working on the sources and the generator: the
+        # generator will automatically reload the most recent changes from the
+        # editor.
+        self._load_categories()
 
     def on_browse(self):
         dd = self.data_dir.get()
@@ -1304,7 +1321,7 @@ class GUI(object):
 
         new_cat_idx = None
         for entry in dir_entries:
-            if not entry.endswith(".py"):
+            if not _is_source_file(entry):
                 continue
 
             entry_path = os.path.join(src_dir, entry)
@@ -1369,11 +1386,27 @@ class GUI(object):
             f.write(d)
 
 
+def _is_source_file(entry):
+    if entry.endswith(".py"):
+        return True
+
+    # Allow files ending in ".txt" too.
+    # This is to avoid confusion if users have configured ".py" files to be
+    # executed with python by default.  Users will generally want to edit these
+    # files, not run them directly with python.
+    if entry.endswith(".txt"):
+        # Skip our sample Example.txt file.
+        if entry.lower == "example.txt":
+            return False
+        return True
+    return False
+
+
 def process_dir(path):
     path = get_data_dir(path)
     src_dir = os.path.join(path, "SLAnims", "source")
     for entry in os.listdir(src_dir):
-        if not entry.endswith(".py"):
+        if not _is_source_file(entry):
             continue
 
         entry_path = os.path.join(src_dir, entry)
