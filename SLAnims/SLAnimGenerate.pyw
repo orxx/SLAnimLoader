@@ -304,6 +304,7 @@ class Category(object):
         for line in lines:
             l = line.strip()
             if not l:
+                stage_finished()
                 title = None
                 continue
             if l.startswith("'"):
@@ -1256,7 +1257,13 @@ class GUI(object):
         self._log("=== Animation Status: {} ===", anim.name)
 
         fnis_status = None
-        for path, (old_info, new_info) in cat.fnis_changed.items():
+        for actor in anim.actors:
+            fnis_path = actor.get_fnis_list_path()
+            fnis_mod_info = cat.fnis_changed.get(fnis_path)
+            if fnis_mod_info is None:
+                # This FNIS file had no modifications
+                continue
+            old_info, new_info = fnis_mod_info
             if anim.id not in old_info[0]:
                 fnis_status = "new"
                 break
@@ -1308,17 +1315,17 @@ class GUI(object):
         # source files have changed.
         self._load_categories()
 
+        modified_files = []
         self._clear_log()
         self._log("=== Build Logs ===")
         try:
-            fnis_changed = any(bool(cat.fnis_changed)
-                               for cat in self.categories)
             for cat in self.categories:
-                self._build_category(cat)
+                cat_modified = self._build_category(cat)
+                modified_files.extend(cat_modified)
         except:
             self._log_exc()
-        if fnis_changed:
-            self._log("!! Remember to re-run GenerateFNIS_for_Modders.exe !!")
+
+        self._check_fnis_changed(modified_files)
 
         # Redisplay the categories
         self._redisplay_categories(clear_log=False)
@@ -1346,14 +1353,21 @@ class GUI(object):
         self._log("=== Build Logs ===")
         # Save the new build data
         try:
-            fnis_changed = bool(cat.fnis_changed)
-            self._build_category(cat)
+            modified_files = self._build_category(cat)
         except:
             self._log_exc()
-        if fnis_changed:
-            self._log("!! Remember to re-run GenerateFNIS_for_Modders.exe !!")
 
+        self._check_fnis_changed(modified_files)
         self._redisplay_categories(cat.name, clear_log=False)
+
+    def _check_fnis_changed(self, modified_files):
+        fnis_changed = False
+        for path in modified_files:
+            if path.lower().endswith('.txt'):
+                fnis_changed = True
+                break
+        if fnis_changed:
+            self._log("!! Remember to re-run GenerateFNISforModders.exe !!")
 
     def _log_exc(self):
         for line in traceback.format_exception(*sys.exc_info()):
@@ -1371,19 +1385,24 @@ class GUI(object):
     def _build_category(self, cat):
         if cat.errors or cat.anim_errors:
             self._log("{}: skipping due to source errors", cat.name)
-            return
+            return []
 
+        modified_files = []
         if cat.json == cat.old_json:
             self._log("{}: JSON already up-to-date", cat.name)
         else:
             cat.save_json()
+            modified_files.append(cat.json_path)
             self._log("{}: updated JSON file {}", cat.name, cat.json_path)
 
         if not cat.fnis_changed:
             self._log("{}: FNIS lists already up-to-date", cat.name)
         for path in sorted(cat.fnis_changed.keys()):
             cat.save_fnis(path)
+            modified_files.append(path)
             self._log("{}: updated FNIS list {}", cat.name, path)
+
+        return modified_files
 
     def _load_categories(self):
         old_cat, old_anim = self._selection_info()
