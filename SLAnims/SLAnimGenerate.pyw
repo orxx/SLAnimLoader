@@ -155,6 +155,10 @@ class CreatureFemale(Actor):
 
 __LOADER_CODE__ = None
 
+_ANIM_NAME_REGEX = re.compile(r"(?P<name>.*)A(?P<actor>[0-9]+)"
+                              r"(?:_?S(?P<stage>[0-9]+))?$",
+                              re.IGNORECASE)
+
 
 class Category(object):
     def __init__(self, name, src_path, data_dir):
@@ -269,10 +273,10 @@ class Category(object):
         fnis_changed = {}
         for path, new_lines in self.fnis_info.items():
             try:
-                with open(path, 'r') as f:
+                with open(path, "r") as f:
                     old_data = f.read()
             except OSError:
-                old_data = ''
+                old_data = ""
 
             old_info = self._parse_fnis_lines(old_data.splitlines())
             new_info = self._parse_fnis_lines(new_lines)
@@ -381,8 +385,9 @@ class Category(object):
             return {}
 
     def load_stages(self):
+        dir_caches = {}
         for anim in self.anims:
-            anim.load_stages()
+            anim.load_stages(dir_caches)
 
     def gen_json_dict(self):
         anims = []
@@ -427,6 +432,73 @@ class Category(object):
             f = f.f_back
 
         return [l.rstrip() for l in traceback.format_list(stack_info)]
+
+
+class AnimStageFile(object):
+    def __init__(self, path, anim_id, actor, stage):
+        self.path = path
+        self.anim_id = anim_id
+        self.actor = actor
+        self.stage = stage
+        self.used = False
+
+
+class AnimDirCache(object):
+    """
+    AnimDirCache finds all hkx files in a given directory, and parses
+    name, actor, and stage information out of them.
+    """
+    def __init__(self, path):
+        self.path = path
+
+        self._by_name = {}
+        self._load()
+
+    def get_anims(self, *names):
+        results = []
+        for n in names:
+            anims = self._by_name.get(n.lower())
+            if not anims:
+                continue
+            results.extend(anims)
+        return results
+
+    def _load(self):
+        try:
+            dir_entries = os.listdir(self.path)
+        except OSError:
+            # The directory doesn't exist, or we didn't have permission to read
+            # it, or some other similar error.
+            return
+
+        for entry in dir_entries:
+            base, ext = os.path.splitext(entry)
+            if ext.lower() != ".hkx":
+                continue
+
+            m = _ANIM_NAME_REGEX.match(base)
+            if not m:
+                continue
+
+            name = m.group("name").lower()
+            name = name.rstrip("_")
+
+            actor_num = int(m.group("actor"))
+
+            stage_str = m.group("stage")
+            if stage_str is None:
+                stage_num = 1
+            else:
+                stage_num = int(stage_str)
+
+            name_info = self._by_name.get(name)
+            if name_info is None:
+                name_info = []
+                self._by_name[name] = name_info
+
+            entry_path = os.path.join(self.path, entry)
+            anim_info = AnimStageFile(entry_path, name, actor_num, stage_num)
+            name_info.append(anim_info)
 
 
 class AnimInfo(object):
@@ -527,28 +599,25 @@ class AnimInfo(object):
 
         return parsed
 
-    def load_stages(self):
+    def load_stages(self, dir_caches):
         if not self.actors:
             return
 
         for actor in self.actors:
-            actor.find_anim_files()
+            actor.find_anim_files(dir_caches)
 
         num_stages = len(self.actors[0].stage_anims)
         bad = False
-        stage_by_actor = [('A1', num_stages)]
+        stage_by_actor = [("A1", num_stages)]
         for idx, actor in enumerate(self.actors[1:]):
             n = len(actor.stage_anims)
-            stage_by_actor.append(('A{}'.format(idx + 2), n))
+            stage_by_actor.append(("A{}".format(idx + 2), n))
             if n != num_stages:
                 bad = True
                 num_stages = max(n, num_stages)
         if bad:
             self.error("all actors must have the same number of "
                        "animation stages: {}", stage_by_actor)
-
-        if num_stages == 0:
-            self.error("no animation files found")
 
     def gen_json_dict(self):
         actor_data = []
@@ -670,16 +739,20 @@ class ActorInfo(object):
                                      on_error=on_error)
         return parsed
 
-    def find_anim_files(self):
-        self.stage_anims = self._find_anim_files()
-
     def get_anim_dir(self):
         data_dir = self.anim.category.data_dir
         race_dir = self._get_race_dir()
         return os.path.join(data_dir, "meshes", "actors", race_dir,
                             "animations", self.anim.anim_dir)
 
-    def _find_anim_files(self):
+    def find_anim_files(self, dir_caches):
+        anim_dir = self.get_anim_dir()
+
+        dir_cache = dir_caches.get(anim_dir.lower())
+        if dir_cache is None:
+            dir_cache = AnimDirCache(anim_dir)
+            dir_caches[anim_dir.lower()] = dir_cache
+
         # Since the animation directory already include mod information,
         # allow the animation files to not include the ID prefix.
         #
@@ -688,63 +761,42 @@ class ActorInfo(object):
         #   actors/character/animations/FunnyBizness/HardcoreDoggy_A1_S1.hkx
         # in addition to
         #   actors/character/animations/FunnyBizness/FB_HardcoreDoggy_A1_S1.hkx
-        prefix1 = "{}_A{}".format(self.anim.id, self.number).lower()
-        prefix2 = "{}_A{}".format(self.anim.bare_id, self.number).lower()
-
-        anim_dir = self.get_anim_dir()
-
         by_stage = {}
-        try:
-            dir_entries = os.listdir(anim_dir)
-        except OSError:
-            dir_entries = []
-        for entry in dir_entries:
-            entry_path = os.path.join(anim_dir, entry)
-            lentry = entry.lower()
-            base, ext = os.path.splitext(lentry)
-            if ext != ".hkx":
+        anims = dir_cache.get_anims(self.anim.id, self.anim.bare_id)
+        for info in anims:
+            if info.actor != self.number:
                 continue
 
-            if lentry.startswith(prefix1):
-                rest = base[len(prefix1):]
-            elif lentry.startswith(prefix2):
-                rest = base[len(prefix2):]
-            else:
-                continue
-
-            rest = rest.lstrip("_")
-            if not rest:
-                stage_num = 1
-            else:
-                m = re.match("^s([0-9]+)$", rest)
-                if not m:
-                    self.warning("unparseable animation name: {!r}",
-                                 entry_path)
-                    continue
-                stage_num = int(m.group(1))
-
-            if stage_num in by_stage:
-                self.error("found multiple animations for stage {}: "
-                           "{!r} and {!r}", stage_num, by_stage[stage_num],
-                           entry_path)
-                continue
-            by_stage[stage_num] = entry
+            if info.stage in by_stage:
+                self.error("found multiple animations for actor {} stage {}:\n"
+                           "  - {}\n"
+                           "  - {}",
+                           self.number, info.stage,
+                           by_stage[info.stage], info.path)
+            by_stage[info.stage] = info.path
 
         expected_next = 1
         stages = []
         for n in sorted(by_stage.keys()):
             if n != expected_next:
-                self.error("no animation found for stage {}", expected_next)
-                return []
+                self.error("no animation found for actor {} stage {}",
+                           self.number, expected_next)
+                self.stage_anims = []
+                return
             expected_next += 1
             stages.append(by_stage[n])
 
-        return stages
+        if not stages:
+            self.error("no animations found for actor {}: expected "
+                       "animations at {}\\{}_A{}_S1.hkx",
+                       self.number, anim_dir, self.anim.id, self.number)
+
+        self.stage_anims = stages
 
     def get_fnis_list_path(self):
         fnis_dir = self.get_anim_dir()
         race_name = fnis_dir.split(os.path.sep)[-3]
-        if race_name.lower() == 'character':
+        if race_name.lower() == "character":
             entry = "FNIS_{}_List.txt".format(self.anim.anim_dir)
         else:
             entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, race_name)
@@ -1291,7 +1343,8 @@ class GUI(object):
     def _log(self, msg, *args, **kwargs):
         if args or kwargs:
             msg = msg.format(*args, **kwargs)
-        self.log.insert(tkinter.END, msg)
+        for line in msg.splitlines():
+            self.log.insert(tkinter.END, line)
 
     def _clear_log(self):
         self.log.delete(0, tkinter.END)
