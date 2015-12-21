@@ -427,8 +427,9 @@ class Category(object):
         f = inspect.currentframe()
         stack_info = []
         while f:
-            if "__LOADER_CODE__" not in f.f_globals:
-                stack_info.extend(traceback.extract_stack(f, 1))
+            if "__LOADER_CODE__" in f.f_globals:
+                break
+            stack_info.extend(traceback.extract_stack(f, 1))
             f = f.f_back
 
         return [l.rstrip() for l in traceback.format_list(stack_info)]
@@ -768,28 +769,26 @@ class ActorInfo(object):
                 continue
 
             if info.stage in by_stage:
-                self.error("found multiple animations for actor {} stage {}:\n"
+                self.error("found multiple animations for stage {}:\n"
                            "  - {}\n"
                            "  - {}",
-                           self.number, info.stage,
-                           by_stage[info.stage], info.path)
+                           info.stage, by_stage[info.stage], info.path)
             by_stage[info.stage] = info.path
 
         expected_next = 1
         stages = []
         for n in sorted(by_stage.keys()):
             if n != expected_next:
-                self.error("no animation found for actor {} stage {}",
-                           self.number, expected_next)
+                self.error("no animation found for stage {}", expected_next)
                 self.stage_anims = []
                 return
             expected_next += 1
             stages.append(by_stage[n])
 
         if not stages:
-            self.error("no animations found for actor {}: expected "
-                       "animations at {}\\{}_A{}_S1.hkx",
-                       self.number, anim_dir, self.anim.id, self.number)
+            self.error("no animations found: expected animations "
+                       "at {}\\{}_A{}_S1.hkx",
+                       anim_dir, self.anim.id, self.number)
 
         self.stage_anims = stages
 
