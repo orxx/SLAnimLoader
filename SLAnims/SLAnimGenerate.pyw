@@ -913,6 +913,20 @@ def _parse_stage_args(kwargs, valid_args, on_error):
     return d
 
 
+def _preformat_json_for_diff(data):
+    # Replace the animation list with a map of anim_id --> anim_info.
+    # This makes the JSON diff output much nicer to read when an animation is
+    # added or removed.  Rather than showing diff info for everything being
+    # shifted up or down, this causes us to show info only for the
+    # added/removed animations.
+    result = data.copy()
+    anim_map = {}
+    for anim in data["animations"]:
+        anim_map[anim["id"]] = anim
+    result["animations"] = anim_map
+    return result
+
+
 def _format_json_diff(old, new):
     lines = []
 
@@ -1202,7 +1216,13 @@ class GUI(object):
         else:
             self._log("JSON needs to be regenerated: {}",
                       cat.relpath(cat.json_path))
-            lines = _format_json_diff(cat.old_json, cat.json)
+
+            # Munge the JSON so the diff is easier to read.
+            # Replace animation indices with animation IDs
+            old_json = _preformat_json_for_diff(cat.old_json)
+            new_json = _preformat_json_for_diff(cat.json)
+
+            lines = _format_json_diff(old_json, new_json)
             for l in lines:
                 self._log("  " + l)
 
