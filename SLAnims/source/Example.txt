@@ -118,6 +118,12 @@ Animation(
         Stage(1, silent=True, open_mouth=True),
         Stage(2, silent=True, open_mouth=True),
     ],
+    stage_params = [
+        # Stage 1 should be 15 seconds long, and use the "Sucking" sound
+        Stage(1, timer=15.0, sound=Sucking),
+        # Stage 2 should be 10 seconds long
+        Stage(2, timer=10.0),
+    ]
 )
 
 Animation(

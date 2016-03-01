@@ -621,6 +621,11 @@ class AnimInfo(object):
             self.error("all actors must have the same number of "
                        "animation stages: {}", stage_by_actor)
 
+        for stage_num in self.stage_params.keys():
+            if stage_num <= 0 or stage_num > num_stages:
+                self.error("invalid stage number {} in stage_params",
+                           stage_num)
+
     def gen_json_dict(self):
         actor_data = []
         for actor in self.actors:
@@ -641,9 +646,11 @@ class AnimInfo(object):
             d["creature_race"] = self.creature_race
         if self.stage_params:
             sp = []
-            for info in self.stage_params.values():
-                sp.append(info)
-            d["stage_params"] = sp
+            for stage_num, info in self.stage_params.items():
+                json_info = info.copy()
+                json_info['number'] = stage_num
+                sp.append(json_info)
+            d["stages"] = sp
         return d
 
     def gen_fnis_lines(self):
