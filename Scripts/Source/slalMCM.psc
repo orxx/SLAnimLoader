@@ -51,6 +51,7 @@ event OnPageReset(string page)
         AddTextOptionST("ReloadJSON", "$SLAL_ReloadJSON", "$SLAL_ClickHere")
         AddTextOptionST("RebuildAnimRegistry", "$SLAL_ResetAnimationRegistry", "$SLAL_ClickHere")
         AddTextOptionST("ReapplyJSON", "$SLAL_ReapplyJSON", "$SLAL_ClickHere")
+        AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_ClickHere")
         AddToggleOptionST("VerboseLogs", "$SLAL_VerboseLogs", verboseLogs)
         return
     endIf
@@ -183,6 +184,57 @@ state RegisterAnims
 
     event OnHighlightST()
         SetInfoText("$SLAL_RegisterAnimationsInfo")
+    endEvent
+endState
+
+state AnimationCount
+    event OnSelectST()
+        int enableState = slalData.getEnableState()
+        int anims = slalData.getAnimations()
+        string animID = JMap.nextKey(anims)
+        int humanToRegister = 0
+        int humanToUnregister = 0
+        int creatureToRegister = 0
+        int creatureToUnregister = 0
+        while animID
+            int animInfo = JMap.getObj(anims, animID)
+            bool isCreature = JMap.hasKey(animInfo, "creature_race")
+            bool enabled = JMap.getInt(enableState, animID) as bool
+            bool registered = Loader.isRegistered(animID)
+            if enabled
+                if !registered
+                    if isCreature
+                        creatureToRegister += 1
+                    else
+                        humanToRegister += 1
+                    endIf
+                endIf
+            else
+                if registered
+                    if isCreature
+                        creatureToUnregister += 1
+                    else
+                        humanToUnregister += 1
+                    endIf
+                endIf
+            endIf
+
+            animID = JMap.nextKey(anims, animID)
+        endWhile
+
+        Loader.PrepareFactory()
+        int humanCount = Loader.Slots.GetCount(false)
+        int creatureCount = Loader.CreatureSlots.GetCount(false)
+        debugMsg("SLAL: current creature count: " + creatureCount)
+
+        int humanTotal = humanCount + humanToRegister - humanToUnregister;
+        int creatureTotal = creatureCount + creatureToRegister - creatureToUnregister;
+        ShowMessage("Human Animations: " + humanCount + " currently registered; " + \
+                    humanToRegister + " to register, " + humanToUnregister + \
+                    " to unregister; new total: " + humanTotal + \
+                    "\nCreature Animations: " + creatureCount + " currently registered; " + \
+                    creatureToRegister + " to register, " + creatureToUnregister + \
+                    " to unregister; new total: " + creatureTotal, false)
     endEvent
 endState
 
