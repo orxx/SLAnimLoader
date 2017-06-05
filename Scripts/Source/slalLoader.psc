@@ -245,16 +245,16 @@ int function addActorPosition(sslBaseAnimation anim, int animInfo, int actorInfo
         verboseMsg("  AddPosition(Female, addCum=" + cum + ")")
         return anim.AddPosition(Female, addCum=cum)
     elseIf type == "Creature"
-        creatureRace = JMap.getStr(animInfo, "creature_race")
+        creatureRace = JMap.getStr(actorInfo, "race")
         verboseMsg("  AddCreaturePosition(" + creatureRace + ", Creature)")
         return anim.AddCreaturePosition(creatureRace, Creature)
     elseIf type == "CreatureMale"
-        creatureRace = JMap.getStr(animInfo, "creature_race")
+        creatureRace = JMap.getStr(actorInfo, "race")
         anim.GenderedCreatures = true
         verboseMsg("  AddCreaturePosition(" + creatureRace + ", CreatureMale)")
         return anim.AddCreaturePosition(creatureRace, CreatureMale)
     elseIf type == "CreatureFemale"
-        creatureRace = JMap.getStr(animInfo, "creature_race")
+        creatureRace = JMap.getStr(actorInfo, "race")
         anim.GenderedCreatures = true
         cum = getActorCum(actorInfo)
         verboseMsg("  AddCreaturePosition(" + creatureRace + ", CreatureFemale, addCum=" + cum + ")")
