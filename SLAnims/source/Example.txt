@@ -72,9 +72,13 @@ common_tags("SuperCool")
 #   Actor definitions.  Possible values:
 #   - Male, Female, CreatureMale, CreatureFemale
 #
-#   Female and CreatureFemale actors accept an add_cum argument describing what
-#   cum settings should be applied for this animation.  Allowed add_cum values:
+#   Humanoid and Creature actors accept an add_cum argument describing what
+#   cum settings should be applied for this animation. The add_cum argument can
+#   be settled for the actor as general or for each actor stage. 
+#   Allowed add_cum values:
 #   - Vaginal, Oral, Anal, VaginalOral, VaginalAnal, OralAnal, VaginalOralAnal
+#   The add_cum argument defined on the actor stages accept an cumsrc argument 
+#   describing the Cum Source Position from 0 to 4.
 #
 #   CreatureMale and CreatureFemale actors require a "race" argument specifying
 #   the creature race.  Examples of valid races include Draugrs, Horses,
@@ -106,7 +110,12 @@ common_tags("SuperCool")
 #   - open_mouth : True / False
 #   - sos : integer setting
 #
-
+#   BedOffsets parameters:
+#   - forward : Move the animation forward by the specified amount when using Bed
+#   - side : Move the animation to the side by the specified amount when using Bed
+#   - up : Move the animation up by the specified amount when using Bed
+#   - rotate : Rotate the animation by the given number of degrees when using Bed
+#
 Animation(
     id="SuckAndFuck",
     name="Suck and Fuck",
@@ -116,7 +125,10 @@ Animation(
     actor2=Male(),
     a1_stage_params = [
         Stage(1, silent=True, open_mouth=True),
-        Stage(2, silent=True, open_mouth=True),
+        Stage(2, silent=True, open_mouth=True, add_cum=Oral, cumsrc=1),
+    ],
+    animoffsets_params = [
+	    AnimOffsets(1, forward=15.0,side=1.0,up=1.0,rotate=180.0),
     ],
     stage_params = [
         # Stage 1 should be 15 seconds long, and use the "Sucking" sound
@@ -142,4 +154,30 @@ Animation(
     sound="Squishing",
     actor1=Female(add_cum=Vaginal),
     actor2=CreatureMale(race="Draugrs"),
+)
+
+Animation(
+    id="example",
+    name="example animation setup for per stage animobjects",
+    tags="whatever",
+    sound="SexMix",
+    actor1=Female(add_cum=Vaginal),
+    actor2=CreatureMale(race="Werewolves", add_cum=VaginalOralAnal),
+    a1_stage_params= [
+        Stage(1, animvars="AVbHumanoidFootIKDisable", object="somerandombox"),
+        Stage(3, object="exampleobjectdildo1"),
+        Stage(4, object="exampleobjectdildo1"),
+        Stage(6, object="exampleobjectdildo1 exampleobjectcum1", add_cum=Oral),
+        Stage(7, object="exampleobjectdildo2 exampleobjectcum2", add_cum=Oral),
+    ],
+    a2_stage_params= [
+        Stage(6, object="exampleobjectwerewolfcum"),
+    ],
+    stage_params = [
+        Stage(1, timer=5.6, sound=NoSound),
+        Stage(2, sound=Squishing),
+        Stage(4, timer=7.6, sound=NoSound),
+        Stage(5, sound=Sucking),
+        Stage(7, timer=12.0, sound=NoSound),
+    ]
 )

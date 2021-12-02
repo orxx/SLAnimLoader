@@ -51,7 +51,11 @@ event OnPageReset(string page)
         AddTextOptionST("ReloadJSON", "$SLAL_ReloadJSON", "$SLAL_ClickHere")
         AddTextOptionST("RebuildAnimRegistry", "$SLAL_ResetAnimationRegistry", "$SLAL_ClickHere")
         AddTextOptionST("ReapplyJSON", "$SLAL_ReapplyJSON", "$SLAL_ClickHere")
-        AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_ClickHere")
+		if !Ready && Percent < 101
+			AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_Working{"+Percent+"}", OPTION_FLAG_DISABLED)
+		else
+			AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_ClickHere")
+		endIf
         AddToggleOptionST("VerboseLogs", "$SLAL_VerboseLogs", verboseLogs)
         return
     endIf
@@ -171,6 +175,7 @@ state RegisterAnims
         int numRegistered
         if CurrentPage == Pages[0]
             numRegistered = Loader.registerAnimations()
+            numRegistered = Loader.registerCreatureAnimations()
         else
             numRegistered = Loader.registerCategoryAnimations(CurrentPage)
             ; Redraw the page, so the toggles will correctly reflect the registration state
@@ -187,8 +192,12 @@ state RegisterAnims
     endEvent
 endState
 
+bool Ready = true
+int Percent = 101
 state AnimationCount
     event OnSelectST()
+		SetOptionFlagsST(OPTION_FLAG_DISABLED)
+		Ready = false
         int enableState = slalData.getEnableState()
         int anims = slalData.getAnimations()
         string animID = JMap.nextKey(anims)
@@ -196,6 +205,8 @@ state AnimationCount
         int humanToUnregister = 0
         int creatureToRegister = 0
         int creatureToUnregister = 0
+        int AnimsCount = JMap.Count(anims)
+		int i = 0
         while animID
             int animInfo = JMap.getObj(anims, animID)
             bool isCreature = JMap.hasKey(animInfo, "creature_race")
@@ -220,6 +231,8 @@ state AnimationCount
             endIf
 
             animID = JMap.nextKey(anims, animID)
+			i += 1
+			Percent = ((i * 100) / AnimsCount) as int
         endWhile
 
         Loader.PrepareFactory()
@@ -227,6 +240,9 @@ state AnimationCount
         int creatureCount = Loader.CreatureSlots.GetCount(false)
         debugMsg("SLAL: current creature count: " + creatureCount)
 
+        SetOptionFlagsST(OPTION_FLAG_NONE)
+		Ready = true
+		Percent = 101
         int humanTotal = humanCount + humanToRegister - humanToUnregister;
         int creatureTotal = creatureCount + creatureToRegister - creatureToUnregister;
         ShowMessage("Human Animations: " + humanCount + " currently registered; " + \
