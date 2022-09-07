@@ -187,12 +187,12 @@ function OnRegisterAnim(int id, string animID)
         n += 1
     endWhile
 
-    int bedoffsets = JMap.getObj(animInfo, "bedoffsets")
-    int numBedOffsets = JArray.count(bedoffsets)
+    int AnimOffsets = JMap.getObj(animInfo, "animoffsets")
+    int numAnimOffsets = JArray.count(AnimOffsets)
     n = 0
-    while n < numBedOffsets
-        int bedOffsetInfo = JArray.getObj(bedoffsets, n)
-        addBedOffsetsInfo(anim, bedOffsetInfo)
+    while n < numAnimOffsets
+        int AnimOffsetInfo = JArray.getObj(AnimOffsets, n)
+        addAnimOffsetsInfo(anim, AnimOffsetInfo)
 
         n += 1
     endWhile
@@ -245,13 +245,18 @@ function addActorStage(sslBaseAnimation anim, int actorID, int stageInfo)
     anim.AddPositionStage(actorID, eventID, forward=forward, side=side, up=up, rotate=rotate, silent=silent, openmouth=openmouth, strapon=strapOn, sos=sos)
 endFunction
 
-function addBedOffsetsInfo(sslBaseAnimation anim, int offsetInfo)
+function addAnimOffsetsInfo(sslBaseAnimation anim, int offsetInfo)
+	string Type = JMap.getStr(offsetInfo, "type")
 	float Forward = JMap.getFlt(offsetInfo, "forward")
 	float Sideward = JMap.getFlt(offsetInfo, "sideward")
 	float Upward = JMap.getFlt(offsetInfo, "upward")
 	float Rotate = JMap.getFlt(offsetInfo, "rotate")
 	if Forward != 0.0 || Sideward != 0.0 || Upward != 0.0 || Rotate != 0.0
-		anim.SetBedOffsets(Forward, Sideward, Upward, Rotate)
+		if !Type || Type == "" || Type == "Bed"
+			anim.SetBedOffsets(Forward, Sideward, Upward, Rotate)
+		elseIf Type == "Furniture"
+			anim.SetFurnitureOffsets(Forward, Sideward, Upward, Rotate)
+		endIf
 	endIf
 endFunction
 

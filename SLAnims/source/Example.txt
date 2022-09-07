@@ -76,7 +76,13 @@ common_tags("SuperCool")
 #   cum settings should be applied for this animation. The add_cum argument can
 #   be settled for the actor as general or for each actor stage. 
 #   Allowed add_cum values:
-#   - Vaginal, Oral, Anal, VaginalOral, VaginalAnal, OralAnal, VaginalOralAnal
+#   - Vaginal
+#   - Oral
+#   - Anal
+#   - VaginalOral
+#   - VaginalAnal
+#   - OralAnal
+#   - VaginalOralAnal
 #   The add_cum argument defined on the actor stages accept an cumsrc argument 
 #   describing the Cum Source Position from 0 to 4.
 #
@@ -89,7 +95,7 @@ common_tags("SuperCool")
 #   object will be applied to all of that actor's stages, unless overridden by
 #   an specific stage parameter in aX_stage_params.
 #
-# - a1_stage_params, a2_stage_params, etc.
+#   - a1_stage_params, a2_stage_params, etc.
 #
 #   Parameters for specific stage animations for the specified actor.
 #   For example, a1_stage_params=[Stage(2, silent=true)]
@@ -110,17 +116,23 @@ common_tags("SuperCool")
 #   - open_mouth : True / False
 #   - sos : integer setting
 #
-#   BedOffsets parameters:
-#   - forward : Move the animation forward by the specified amount when using Bed
-#   - side : Move the animation to the side by the specified amount when using Bed
-#   - up : Move the animation up by the specified amount when using Bed
-#   - rotate : Rotate the animation by the given number of degrees when using Bed
+#   The animations can have a global alignment known as "AnimOffsets" that only get
+#   applied when is being executed over a Bed or Furniture. This is specially usefull
+#   on animations made exclusively for beds or furnitures. Avoid the need of use the
+#   forward, side, up and rotate parameters on each actor stage to archieve the same goal.
+#
+#   AnimOffsets parameters:
+#   - forward : Move the animation forward by the specified amount when using Bed or Furniture
+#   - side : Move the animation to the side by the specified amount when using Bed or Furniture
+#   - up : Move the animation up by the specified amount when using Bed or Furniture
+#   - rotate : Rotate the animation by the given number of degrees when using Bed or Furniture
+#   - type : The type of AnimOffsets to set. Can be "Bed" (or "Furniture" on future versions of the SexLab Framework)
 #
 Animation(
     id="SuckAndFuck",
     name="Suck and Fuck",
     tags="Dirty,Sex,Oral,Vaginal,MF",
-    sound=Squishing,
+    sound="Squishing",
     actor1=Female(add_cum=VaginalOral),
     actor2=Male(),
     a1_stage_params = [
@@ -128,7 +140,7 @@ Animation(
         Stage(2, silent=True, open_mouth=True, add_cum=Oral, cumsrc=1),
     ],
     animoffsets_params = [
-	    AnimOffsets(1, forward=15.0,side=1.0,up=1.0,rotate=180.0),
+	    AnimOffsets(type="Bed", forward=15.0, side=1.0, up=1.0, rotate=180.0),
     ],
     stage_params = [
         # Stage 1 should be 15 seconds long, and use the "Sucking" sound
@@ -142,7 +154,7 @@ Animation(
     id="PilloryDoggy",
     name="Pillory Doggy",
     tags="Sex,Dirty,Furniture,AnimObject,Vaginal,Doggy,Doggystyle,MF",
-    sound=Squishing,
+    sound="Squishing",
     actor1=Female(add_cum=Vaginal),
     actor2=Male(object="AOZaZPunishmentPillory"),
 )
@@ -167,7 +179,7 @@ Animation(
         Stage(1, animvars="AVbHumanoidFootIKDisable", object="somerandombox"),
         Stage(3, object="exampleobjectdildo1"),
         Stage(4, object="exampleobjectdildo1"),
-        Stage(6, object="exampleobjectdildo1 exampleobjectcum1", add_cum=Oral),
+        Stage(6, object="exampleobjectdildo1 exampleobjectcum1", add_cum=Vaginal),
         Stage(7, object="exampleobjectdildo2 exampleobjectcum2", add_cum=Oral),
     ],
     a2_stage_params= [
@@ -175,9 +187,9 @@ Animation(
     ],
     stage_params = [
         Stage(1, timer=5.6, sound=NoSound),
-        Stage(2, sound=Squishing),
+        Stage(2, sound="Squishing"),
         Stage(4, timer=7.6, sound=NoSound),
-        Stage(5, sound=Sucking),
+        Stage(5, sound="Sucking"),
         Stage(7, timer=12.0, sound=NoSound),
     ]
 )

@@ -39,6 +39,25 @@ VALID_SOUNDS = [
     "SexMix",
     "Squirting",
 ]
+VALID_SOUNDS_LOWER = [
+    "",
+    "none",
+    "squishing",
+    "sucking",
+    "sexmix",
+    "squirting",
+]
+
+OFFSETS_TYPES = [
+    "",
+    "Bed",
+    "Furniture",
+]
+OFFSETS_TYPES_LOWER = [
+    "",
+    "bed",
+    "furniture",
+]
 
 # These numerical values must match the settings defined
 # in the SexLab Framework's sslAnimationFactory script.
@@ -85,6 +104,9 @@ KNOWN_RACES = {
     #
     "Ashhoppers": "dlc02/scrib",
     "Boars": "dlc02/boarriekling",
+    "BoarsAny": "dlc02/boarriekling",
+    "BoarsMounted": "dlc02/boarriekling",
+    "Canines": "canine",
     "ChaurusHunters": "dlc01/chaurusflyer",
     "ChaurusReapers": "chaurus",
     "Cows": "cow",
@@ -94,16 +116,21 @@ KNOWN_RACES = {
     "DwarvenCenturions": "DwarvenSteamCenturion",
     "DwarvenSpheres": "dwarvenspherecenturion",
     "DwarvenSpiders": "dwarvenspider",
+    "Foxes": "canine",
     "FrostAtronach": "atronachfrost",
     "Goats": "goat",
     "Hagravens": "hagraven",
     "Horkers": "horker",
+    "IceWraiths": "icewraith",
     "Mammoths": "mammoth",
+    "Mudcrabs": "mudcrab",
     "Netches": "dlc02/netch",
     "Rabbits": "ambient/hare",
     "Slaughterfishes": "slaughterfish",
+    "StormAtronach": "atronachstorm",
     "GiantSpiders": "frostbitespider",
-    "Wispmothers": "wisp",
+    "WispMothers": "wisp",
+    "Wisps": "witchlight",
 }
 KNOWN_RACES_LOWER = dict((k.lower(), v) for k, v in KNOWN_RACES.items())
 
@@ -114,6 +141,12 @@ class Stage(object):
         self.kwargs = kwargs
 
 
+class AnimOffsets(object):
+    def __init__(self, type, **kwargs):
+        self.type = type
+        self.kwargs = kwargs
+
+
 class Actor(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -121,7 +154,7 @@ class Actor(object):
 
 class Male(Actor):
     SEXLAB_VALUE = 0
-    ALLOW_CUM = False
+    ALLOW_CUM = True
     IS_CREATURE = False
 
 
@@ -133,7 +166,7 @@ class Female(Actor):
 
 class CreatureMale(Actor):
     SEXLAB_VALUE = 2
-    ALLOW_CUM = False
+    ALLOW_CUM = True
     IS_CREATURE = True
 
 
@@ -228,6 +261,7 @@ class Category(object):
             "anim_name_prefix": cat.set_anim_name_prefix,
             "common_tags": cat.set_common_tags,
             "Stage": Stage,
+            "AnimOffsets": AnimOffsets,
             "Female": Female,
             "Male": Male,
             "CreatureFemale": CreatureFemale,
@@ -242,6 +276,8 @@ class Category(object):
                 global_vars["NoSound"] = sound
             else:
                 global_vars[sound] = sound
+        for animoffsets_type in OFFSETS_TYPES:
+            global_vars[animoffsets_type] = animoffsets_type
         for cum_type in CUM_TYPES.keys():
             global_vars[cum_type] = cum_type
         exec(code, global_vars, local_vars)
@@ -253,6 +289,7 @@ class Category(object):
         cat.is_example = local_vars.get("is_example", False)
 
         cat.load_stages()
+        cat.load_animoffsets()
         cat.anim_errors = sum(1 for a in cat.anims if a.errors)
 
         cat.gen_data()
@@ -292,7 +329,10 @@ class Category(object):
             if not cur_stage:
                 return
             if title:
-                stages[title] = cur_stage
+                if not title in stages:
+                    stages[title] = cur_stage
+                else:
+                    stages[title] += cur_stage
             else:
                 untitled.add(tuple(cur_stage))
 
@@ -384,6 +424,11 @@ class Category(object):
         dir_caches = {}
         for anim in self.anims:
             anim.load_stages(dir_caches)
+
+    def load_animoffsets(self):
+        dir_caches = {}
+        for anim in self.anims:
+            anim.load_animoffsets(dir_caches)
 
     def gen_json_dict(self):
         anims = []
@@ -511,7 +556,7 @@ class AnimInfo(object):
             # TODO: This is okay if a sound is explicitly specified
             # for each stage
             self.error("no animation sound specified")
-        elif self.sound not in VALID_SOUNDS:
+        elif self.sound.lower() not in VALID_SOUNDS_LOWER:
             self.error("invalid sound {!r}: must be one of {}",
                        self.sound, ", ".join(VALID_SOUNDS))
 
@@ -558,6 +603,10 @@ class AnimInfo(object):
         stage_params_arg = kwargs.pop("stage_params", None)
         self.stage_params = self._parse_stage_params(stage_params_arg)
 
+        # Parse animoffsets_params
+        animoffsets_params_arg = kwargs.pop("animoffsets_params", None)
+        self.animoffsets_params = self._parse_animoffsets_params(animoffsets_params_arg)
+
         if kwargs:
             self.error("unsupported arguments: {}", "," .join(kwargs.keys()))
 
@@ -590,7 +639,7 @@ class AnimInfo(object):
         # Validate the sound types
         for sp in parsed.values():
             sp_sound = sp.get("sound")
-            if sp_sound is not None and sp_sound not in VALID_SOUNDS:
+            if sp_sound is not None and sp_sound.lower() not in VALID_SOUNDS_LOWER:
                 self.error("invalid sound {!r}: must be one of {}",
                            self.sound, ", ".join(VALID_SOUNDS))
 
@@ -621,6 +670,31 @@ class AnimInfo(object):
                 self.error("invalid stage number {} in stage_params",
                            stage_num)
 
+    def _parse_animoffsets_params(self, animoffsets_params):
+        VALID_ARGS = {
+            "forward": float,
+			"side": float,
+			"up": float,
+			"rotate": float,
+        }
+
+        parsed = _parse_animoffsets_params(animoffsets_params, VALID_ARGS,
+                                     on_error=self.error)
+
+        return parsed
+
+    def load_animoffsets(self, dir_caches):
+        if not self.animoffsets_params:
+            return
+
+        for animoffsets_type in self.animoffsets_params.keys():
+            if animoffsets_type is None:
+                # TODO: This will be considered as type "Bed"
+                self.error("no animoffsets type specified")
+            elif animoffsets_type.lower() not in OFFSETS_TYPES_LOWER:
+                self.error("invalid animoffsets type {!r}: must be one of {}",
+                           animoffsets_type, ", ".join(OFFSETS_TYPES))
+
     def gen_json_dict(self):
         actor_data = []
         for actor in self.actors:
@@ -646,6 +720,13 @@ class AnimInfo(object):
                 json_info['number'] = stage_num
                 sp.append(json_info)
             d["stages"] = sp
+        if self.animoffsets_params:
+            aop = []
+            for animoffsets_type, info in self.animoffsets_params.items():
+                json_info = info.copy()
+                json_info['type'] = animoffsets_type
+                aop.append(json_info)
+            d["animoffsets"] = aop
         return d
 
     def gen_fnis_lines(self):
@@ -673,6 +754,12 @@ class ActorInfo(object):
         "open_mouth": bool,
         "strap_on": bool,
         "sos": int,
+        "add_cum": str,
+        "cumsrc": int,
+        # MY EDIT
+        "object": str,     # For FNIS only, NOT a Sexlab parameter. Must be removed for json export
+        "animvars": str,   # For FNIS only, NOT a Sexlab parameter. Must be removed for json export
+        #########
     }
 
     def __init__(self, anim, number, info, stage_params):
@@ -724,14 +811,41 @@ class ActorInfo(object):
                 self.error("invalid cum type {!r}: must be one of {}",
                            cum_type, ", ".join(CUM_TYPES.keys()))
 
-        self.object_name = kwargs.pop("object", None)
+        # MY EDIT
+        #self.object_name = kwargs.pop("object", None)
 
         self.stage_defaults = _parse_stage_args(kwargs, self.ACTOR_STAGE_ARGS,
                                                 on_error=self.error)
+
+        #MY EDIT - Pop the FNIS only options from the stage_defaults parameters here
+        #          and set them to an actor variable. This al means this doesn't need to be done
+        #          in the sexlab json creation function. Per-state parameters will still exist as
+        #          created directly below
+        self.object_name =  self.stage_defaults.pop("object", None)
+        self.animvars =  self.stage_defaults.pop("animvars", None)
+        ########
         if kwargs:
             self.error("unsupported arguments: {}", ", ".join(kwargs.keys()))
 
         self.stage_params = self._parse_stage_params(stage_params)
+
+        # MY EDIT - look through every stage, and if they have a per-stage parameter that already exists as a 'global' actor
+        #           parameter, then just remove it.
+        for stagenum in self.stage_params:
+            if self.object_name:
+                self.stage_params[stagenum].pop("object", None)
+            if self.animvars:
+                self.stage_params[stagenum].pop("animvars", None)
+            cum_type = self.stage_params[stagenum].pop("add_cum", None)
+            if cum_type is not None:
+                stage_cum = CUM_TYPES_LOWER.get(cum_type.lower())
+                if stage_cum is not None:
+                    self.stage_params[stagenum]["add_cum"] = stage_cum
+                else:
+                    self.error("invalid cum type {!r}: must be one of {}",
+                               cum_type, ", ".join(CUM_TYPES.keys()))
+
+
 
     def _parse_stage_params(self, stage_params):
         def on_error(msg, *args, **kwargs):
@@ -811,6 +925,7 @@ class ActorInfo(object):
         if self.creature_race is None:
             return "character"
 
+        # MY EDIT - If to fix wolf vs dog rce directory, maybe do it here
         race_dir = KNOWN_RACES_LOWER.get(self.creature_race.lower())
         if race_dir is None:
             self.error("unable to find animation race directory for unknown "
@@ -828,7 +943,13 @@ class ActorInfo(object):
             s = {"id": anim_id}
             s.update(self.stage_defaults)
             if stage_num in self.stage_params:
-                s.update(self.stage_params[stage_num])
+                # MY EDIT - if this stage has parameters that override the defaults, this applies them
+                # Need to remove Non-sexlab actor stage parameters. This can't be done in the stage parameter parsing, because we WANT
+                # those parameters for FNIS
+                tempDict = self.stage_params[stage_num].copy()
+                tempDict.pop("object", None)
+                tempDict.pop("animvars", None)
+                s.update(tempDict)
 
             stages.append(s)
 
@@ -843,24 +964,66 @@ class ActorInfo(object):
         return d
 
     def gen_fnis_lines(self):
-        object_arg = ""
-        object_suffix = ""
+        actorglobal_options_string = ""
+        animobject_name = ""
+
+        # MY EDIT - Check all possible FNIS options, and build the string if they exist
+        #if self.object_name or self.animvars:
+        #    actorglobal_options_string += " -"
+        #    option_separator = ""
+        # Now build options string
         if self.object_name:
-            object_arg = " -o"
-            object_suffix = " " + self.object_name
+            actorglobal_options_string += "o"
+            animobject_name = self.object_name
+        if self.animvars:
+            if actorglobal_options_string:
+                actorglobal_options_string += ","
+            actorglobal_options_string += self.animvars
 
         lines = []
         for idx, sanim in enumerate(self.stage_anims):
+            stage_options_string = ""
+            combined_option_string =""
             stage_num = idx + 1
             if idx == 0:
                 prefix = "s"
             else:
                 prefix = "+"
+            # MY EDIT - If per-stage FNIS-relavent actor parameters exist, build per-stage option string.
+            #           If the global string is "" (no variable), then it needs to be started per-stage
+            #           As a special options case, since anim objects need an additional line item, check for that and iitially remove if
+            #           there isn't an 'actor global' object
+            #           Note that if global actor var equivalent existed, then per-stage versio of that var was removed
+            #           (overriden), so no need to worry about duplicate global and per-stage vars conflicting
+            if stage_num in self.stage_params:
+                if not self.object_name:
+                    animobject_name = ""
+                if ("object" in self.stage_params[stage_num]):
+                    stage_options_string += "o"
+                    animobject_name = self.stage_params[stage_num]["object"]
+                if ("animvars" in self.stage_params[stage_num]):
+                    if stage_options_string:
+                        stage_options_string += ","
+                    stage_options_string += self.stage_params[stage_num]["animvars"]
+            # else, remove the special object parameter if it doesn't exist globally
+            else:
+                if not self.object_name:
+                    animobject_name = ""
+
 
             filename = os.path.basename(sanim)
-            line = "{}{} {}_A{}_S{} {}{}".format(
-                    prefix, object_arg, self.anim.id, self.number, stage_num,
-                    filename, object_suffix)
+
+            if actorglobal_options_string:
+                combined_option_string = " -" + actorglobal_options_string
+                if stage_options_string:
+                    combined_option_string += "," + stage_options_string
+            elif stage_options_string:
+                combined_option_string = " -" + stage_options_string
+
+            # MY EDIT - for using constructed strings
+            line = "{}{} {}_A{}_S{} {} {}".format(
+                    prefix, combined_option_string, self.anim.id, self.number, stage_num,
+                    filename, animobject_name)
             lines.append(line)
 
         return lines
@@ -910,6 +1073,44 @@ def _parse_stage_args(kwargs, valid_args, on_error):
             allowed_types = type
         if not isinstance(value, allowed_types):
             on_error("invalid value for stage param {!r}: "
+                    "got {!r}, expected a {}",
+                    name, value, type.__name__)
+        d[name] = value
+    return d
+
+def _parse_animoffsets_params(animoffsets_params, valid_args, on_error):
+    if not animoffsets_params:
+        return {}
+
+    parsed = {}
+    for aop in animoffsets_params:
+        if not isinstance(aop, AnimOffsets):
+            on_error("expected a AnimOffsets() object")
+            continue
+        animoffsets_info = _parse_animoffsets_args(aop.kwargs, valid_args, on_error)
+        if not animoffsets_info:
+            # This is just a sanity check.  There's no point specifying
+            # AnimOffsets() with no arguments other than a type.
+            on_error("empty animoffsets parameters for animoffsets {}", aop.type)
+        parsed[aop.type] = animoffsets_info
+        if aop.kwargs:
+            on_error("unsupported arguments: {}", ", ".join(kwargs.keys()))
+
+    return parsed
+
+def _parse_animoffsets_args(kwargs, valid_args, on_error):
+    d = {}
+    for name, type in valid_args.items():
+        if name not in kwargs:
+            continue
+        value = kwargs.pop(name)
+        if type == float:
+            # Also allow integers in float fields
+            allowed_types = (float, int)
+        else:
+            allowed_types = type
+        if not isinstance(value, allowed_types):
+            on_error("invalid value for animoffsets param {!r}: "
                     "got {!r}, expected a {}",
                     name, value, type.__name__)
         d[name] = value

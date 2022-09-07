@@ -175,7 +175,7 @@ state RegisterAnims
         int numRegistered
         if CurrentPage == Pages[0]
             numRegistered = Loader.registerAnimations()
-            numRegistered = Loader.registerCreatureAnimations()
+            numRegistered += Loader.registerCreatureAnimations()
         else
             numRegistered = Loader.registerCategoryAnimations(CurrentPage)
             ; Redraw the page, so the toggles will correctly reflect the registration state
