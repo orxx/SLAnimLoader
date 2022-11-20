@@ -254,8 +254,8 @@ function addAnimOffsetsInfo(sslBaseAnimation anim, int offsetInfo)
 	if Forward != 0.0 || Sideward != 0.0 || Upward != 0.0 || Rotate != 0.0
 		if !Type || Type == "" || Type == "Bed"
 			anim.SetBedOffsets(Forward, Sideward, Upward, Rotate)
-		elseIf Type == "Furniture"
-			anim.SetFurnitureOffsets(Forward, Sideward, Upward, Rotate)
+	;	elseIf Type == "Furniture"
+	;		anim.SetFurnitureOffsets(Forward, Sideward, Upward, Rotate)
 		endIf
 	endIf
 endFunction
