@@ -47,18 +47,26 @@ event OnPageReset(string page)
 
         AddTextOptionST("EnableAll", "$SLAL_EnableAll", "$SLAL_ClickHere")
         AddTextOptionST("DisableAll", "$SLAL_DisableAll", "$SLAL_ClickHere")
-        AddTextOptionST("RegisterAnims", "$SLAL_RegisterAnimations", "$SLAL_ClickHere")
-        AddTextOptionST("ReloadJSON", "$SLAL_ReloadJSON", "$SLAL_ClickHere")
-        AddTextOptionST("RebuildAnimRegistry", "$SLAL_ResetAnimationRegistry", "$SLAL_ClickHere")
-        AddTextOptionST("ReapplyJSON", "$SLAL_ReapplyJSON", "$SLAL_ClickHere")
-        AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_ClickHere")
+		if !Ready && Percent >= 100
+			AddTextOptionST("RegisterAnims", "$SLAL_RegisterAnimations", "$SLAL_Working", OPTION_FLAG_DISABLED)
+		else
+			AddTextOptionST("RegisterAnims", "$SLAL_RegisterAnimations", "$SLAL_ClickHere", (!Ready) as int)
+		endIf
+        AddTextOptionST("ReloadJSON", "$SLAL_ReloadJSON", "$SLAL_ClickHere", (!Ready) as int)
+        AddTextOptionST("RebuildAnimRegistry", "$SLAL_ResetAnimationRegistry", "$SLAL_ClickHere", (!Ready) as int)
+        AddTextOptionST("ReapplyJSON", "$SLAL_ReapplyJSON", "$SLAL_ClickHere", (!Ready) as int)
+		if !Ready && Percent < 101
+			AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_Working{"+Percent+"}", OPTION_FLAG_DISABLED)
+		else
+			AddTextOptionST("AnimationCount", "$SLAL_CountAnimations", "$SLAL_ClickHere", (!Ready) as int)
+		endIf
         AddToggleOptionST("VerboseLogs", "$SLAL_VerboseLogs", verboseLogs)
         return
     endIf
 
     AddTextOptionST("EnableAll", "$SLAL_EnableAll", "$SLAL_ClickHere")
     AddTextOptionST("DisableAll", "$SLAL_DisableAll", "$SLAL_ClickHere")
-    AddTextOptionST("RegisterAnims", "$SLAL_RegisterAnimations", "$SLAL_ClickHere")
+    AddTextOptionST("RegisterAnims", "$SLAL_RegisterAnimations", "$SLAL_ClickHere", (!Ready) as int)
     AddEmptyOption()
     AddHeaderOption("$SLAL_Animations")
     AddHeaderOption("")
@@ -167,19 +175,23 @@ state RegisterAnims
     event OnSelectST()
         SetOptionFlagsST(OPTION_FLAG_DISABLED)
         SetTextOptionValueST("$SLAL_Registering")
-
+		Ready = False
+		
         int numRegistered
         if CurrentPage == Pages[0]
             numRegistered = Loader.registerAnimations()
+            numRegistered += Loader.registerCreatureAnimations()
         else
             numRegistered = Loader.registerCategoryAnimations(CurrentPage)
             ; Redraw the page, so the toggles will correctly reflect the registration state
             ForcePageReset()
         endIf
 
+		Ready = True
         SetTextOptionValueST("$SLAL_ClickHere")
         SetOptionFlagsST(OPTION_FLAG_NONE)
-        ShowMessage("Registered " + numRegistered + " new animations", false)
+        ShowMessage("$SLAL_NewAnimationsRegistered{{" + numRegistered + "}", false)
+		ForcePageReset()
     endEvent
 
     event OnHighlightST()
@@ -187,8 +199,14 @@ state RegisterAnims
     endEvent
 endState
 
+bool Ready = true
+int Percent = 101
 state AnimationCount
     event OnSelectST()
+		SetOptionFlagsST(OPTION_FLAG_DISABLED)
+		SetTextOptionValueST("$SLAL_Working")
+
+		Ready = false
         int enableState = slalData.getEnableState()
         int anims = slalData.getAnimations()
         string animID = JMap.nextKey(anims)
@@ -196,6 +214,8 @@ state AnimationCount
         int humanToUnregister = 0
         int creatureToRegister = 0
         int creatureToUnregister = 0
+        int AnimsCount = JMap.Count(anims)
+		int i = 0
         while animID
             int animInfo = JMap.getObj(anims, animID)
             bool isCreature = JMap.hasKey(animInfo, "creature_race")
@@ -220,6 +240,8 @@ state AnimationCount
             endIf
 
             animID = JMap.nextKey(anims, animID)
+			i += 1
+			Percent = ((i * 100) / AnimsCount) as int
         endWhile
 
         Loader.PrepareFactory()
@@ -227,14 +249,13 @@ state AnimationCount
         int creatureCount = Loader.CreatureSlots.GetCount(false)
         debugMsg("SLAL: current creature count: " + creatureCount)
 
+		SetTextOptionValueST("$SLAL_ClickHere")
+        SetOptionFlagsST(OPTION_FLAG_NONE)
+		Ready = true
+		Percent = 101
         int humanTotal = humanCount + humanToRegister - humanToUnregister;
         int creatureTotal = creatureCount + creatureToRegister - creatureToUnregister;
-        ShowMessage("Human Animations: " + humanCount + " currently registered; " + \
-                    humanToRegister + " to register, " + humanToUnregister + \
-                    " to unregister; new total: " + humanTotal + \
-                    "\nCreature Animations: " + creatureCount + " currently registered; " + \
-                    creatureToRegister + " to register, " + creatureToUnregister + \
-                    " to unregister; new total: " + creatureTotal, false)
+        ShowMessage("$SLAL_HumanAnimations_{"+humanCount+"}currentlyRegistered_{"+humanToRegister+"}toRegister_{"+humanToUnregister+"}toUnregister_newTotal{"+humanTotal+"}\nCreatureAnimations_{"+creatureCount+"}currentlyRegistered_{"+creatureToRegister+"}toRegister_{"+creatureToUnregister+"}toUnregister_newTotal{"+creatureTotal+"}", false)
     endEvent
 endState
 
@@ -305,12 +326,16 @@ endState
 
 state EnableAll
     event OnSelectST()
+		SetOptionFlagsST(OPTION_FLAG_DISABLED)
+		SetTextOptionValueST("$SLAL_Working")
         if CurrentPage == Pages[0]
             toggleAllAnims(true)
             ShowMessage("$SLAL_EnableAllDone", false)
         else
             toggleAllPageAnims(true)
         endIf
+        SetTextOptionValueST("$SLAL_ClickHere")
+        SetOptionFlagsST(OPTION_FLAG_NONE)
     endEvent
 
     event OnHighlightST()
@@ -320,12 +345,16 @@ endState
 
 state DisableAll
     event OnSelectST()
+		SetOptionFlagsST(OPTION_FLAG_DISABLED)
+		SetTextOptionValueST("$SLAL_Working")
         if CurrentPage == Pages[0]
             toggleAllAnims(false)
             ShowMessage("$SLAL_DisableAllDone", false)
         else
             toggleAllPageAnims(false)
         endIf
+        SetTextOptionValueST("$SLAL_ClickHere")
+        SetOptionFlagsST(OPTION_FLAG_NONE)
     endEvent
 
     event OnHighlightST()

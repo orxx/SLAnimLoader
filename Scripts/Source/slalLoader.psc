@@ -19,6 +19,7 @@ endFunction
 function OnLoad()
     debugMsg("SLAL: OnLoad")
     RegisterForModEvent("SexLabSlotAnimations", "registerAnimations")
+    RegisterForModEvent("SexLabSlotCreatureAnimations", "registerCreatureAnimations")
 
     ; After any game load, make sure we re-read JSON data the next time it is
     ; needed.  (Don't bother re-reading it now, since we won't actually need it
@@ -27,24 +28,56 @@ function OnLoad()
 endFunction
 
 ; Register all enabled animations
+bool registeringAnimations
 int function registerAnimations()
-    debugMsg("SLAL: registering animations")
-    PrepareFactory()
+	if !registeringAnimations
+		registeringAnimations = true
+		debugMsg("SLAL: registering animations")
+		PrepareFactory()
 
-    int enableState = slalData.getEnableState()
-    int anims = slalData.getAnimations()
-    string animID = JMap.nextKey(anims)
-    int numRegistered = 0
-    while animID
-        if registerAnimIfEnabled(animID, anims, enableState)
-            numRegistered += 1
-        endIf
+		int enableState = slalData.getEnableState()
+		int anims = slalData.getAnimations()
+		string animID = JMap.nextKey(anims)
+		int numRegistered = 0
+		while animID
+			if !JMap.hasKey(JMap.getObj(anims, animID), "creature_race") && registerAnimIfEnabled(animID, anims, enableState)
+				numRegistered += 1
+			endIf
 
-        animID = JMap.nextKey(anims, animID)
-    endWhile
+			animID = JMap.nextKey(anims, animID)
+		endWhile
 
-    debugMsg("SLAL: finished registering " + numRegistered + " animations")
-    return numRegistered
+		debugMsg("SLAL: finished registering " + numRegistered + " animations")
+		registeringAnimations = false
+		return numRegistered
+	endIf
+	return 0
+endFunction
+
+bool registeringCreatureAnimations
+int function registerCreatureAnimations()
+	if !registeringCreatureAnimations
+		registeringCreatureAnimations = true
+		debugMsg("SLAL: registering animations")
+		PrepareFactory()
+
+		int enableState = slalData.getEnableState()
+		int anims = slalData.getAnimations()
+		string animID = JMap.nextKey(anims)
+		int numRegistered = 0
+		while animID
+			if JMap.hasKey(JMap.getObj(anims, animID), "creature_race") && registerAnimIfEnabled(animID, anims, enableState)
+				numRegistered += 1
+			endIf
+
+			animID = JMap.nextKey(anims, animID)
+		endWhile
+
+		debugMsg("SLAL: finished registering " + numRegistered + " animations")
+		registeringCreatureAnimations = false
+		return numRegistered
+	endIf
+	return 0
 endFunction
 
 ; Register the enabled animations from a specific category
@@ -154,7 +187,15 @@ function OnRegisterAnim(int id, string animID)
         n += 1
     endWhile
 
-    ; TODO: SetBedOffsets(float forward, float sideward, float upward, float rotate)
+    int AnimOffsets = JMap.getObj(animInfo, "animoffsets")
+    int numAnimOffsets = JArray.count(AnimOffsets)
+    n = 0
+    while n < numAnimOffsets
+        int AnimOffsetInfo = JArray.getObj(AnimOffsets, n)
+        addAnimOffsetsInfo(anim, AnimOffsetInfo)
+
+        n += 1
+    endWhile
 
     string tags = JMap.getStr(animInfo, "tags")
     verboseMsg("  Tags = " + anim.SoundFX)
@@ -171,9 +212,20 @@ function addActorInfo(sslBaseAnimation anim, int animInfo, int actorInfo)
     int n = 0
     while n < numStages
         int stageInfo = JArray.getObj(stages, n)
-        addActorStage(anim, actorID, stageInfo)
+        addActorStagePlus(anim, actorID, stageInfo, n+1)
         n += 1
     endWhile
+endFunction
+
+function addActorStagePlus(sslBaseAnimation anim, int actorID, int stageInfo, int stage = 0)
+	addActorStage(anim, actorID, stageInfo)
+	if stage > 0
+		int cum = getActorCum(stageInfo)
+		if cum != -1
+			int cumsrc = JMap.getInt(stageInfo, "cumsrc", -1)
+			anim.SetStageCumID(actorID, stage, cum, cumsrc)
+		endIf
+	endIf
 endFunction
 
 function addActorStage(sslBaseAnimation anim, int actorID, int stageInfo)
@@ -191,8 +243,21 @@ function addActorStage(sslBaseAnimation anim, int actorID, int stageInfo)
     verboseMsg("        forward=" + forward + ", side=" + side + ", up=" + up + ", rotate=" + rotate + ",")
     verboseMsg("        silent=" + silent + ", openmouth=" + openmouth + ", strapon=" + strapon + ", sos=" + sos + ")")
     anim.AddPositionStage(actorID, eventID, forward=forward, side=side, up=up, rotate=rotate, silent=silent, openmouth=openmouth, strapon=strapOn, sos=sos)
+endFunction
 
-    ; TODO: SetStageCumID(int Position, int Stage, int CumID, int CumSource = -1)
+function addAnimOffsetsInfo(sslBaseAnimation anim, int offsetInfo)
+	string Type = JMap.getStr(offsetInfo, "type")
+	float Forward = JMap.getFlt(offsetInfo, "forward")
+	float Sideward = JMap.getFlt(offsetInfo, "sideward")
+	float Upward = JMap.getFlt(offsetInfo, "upward")
+	float Rotate = JMap.getFlt(offsetInfo, "rotate")
+	if Forward != 0.0 || Sideward != 0.0 || Upward != 0.0 || Rotate != 0.0
+		if !Type || Type == "" || Type == "Bed"
+			anim.SetBedOffsets(Forward, Sideward, Upward, Rotate)
+	;	elseIf Type == "Furniture"
+	;		anim.SetFurnitureOffsets(Forward, Sideward, Upward, Rotate)
+		endIf
+	endIf
 endFunction
 
 function addStageInfo(sslBaseAnimation anim, int stageInfo)
@@ -238,21 +303,23 @@ int function addActorPosition(sslBaseAnimation anim, int animInfo, int actorInfo
     int cum
 
     if type == "Male"
-        verboseMsg("  AddPosition(Male)")
-        return anim.AddPosition(Male)
+        cum = getActorCum(actorInfo)
+        verboseMsg("  AddPosition(Male, addCum=" + cum + ")")
+        return anim.AddPosition(Male, addCum=cum)
     elseIf type == "Female"
         cum = getActorCum(actorInfo)
         verboseMsg("  AddPosition(Female, addCum=" + cum + ")")
         return anim.AddPosition(Female, addCum=cum)
     elseIf type == "Creature"
-        creatureRace = JMap.getStr(actorInfo, "race")
+        creatureRace = JMap.getStr(animInfo, "creature_race")
         verboseMsg("  AddCreaturePosition(" + creatureRace + ", Creature)")
         return anim.AddCreaturePosition(creatureRace, Creature)
     elseIf type == "CreatureMale"
         creatureRace = JMap.getStr(actorInfo, "race")
         anim.GenderedCreatures = true
-        verboseMsg("  AddCreaturePosition(" + creatureRace + ", CreatureMale)")
-        return anim.AddCreaturePosition(creatureRace, CreatureMale)
+        cum = getActorCum(actorInfo)
+        verboseMsg("  AddCreaturePosition(" + creatureRace + ", CreatureMale, addCum=" + cum + ")")
+        return anim.AddCreaturePosition(creatureRace, CreatureMale, AddCum=cum)
     elseIf type == "CreatureFemale"
         creatureRace = JMap.getStr(actorInfo, "race")
         anim.GenderedCreatures = true

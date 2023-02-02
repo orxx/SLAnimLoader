@@ -39,25 +39,6 @@ VALID_SOUNDS = [
     "SexMix",
     "Squirting",
 ]
-VALID_SOUNDS_LOWER = [
-    "",
-    "none",
-    "squishing",
-    "sucking",
-    "sexmix",
-    "squirting",
-]
-
-OFFSETS_TYPES = [
-    "",
-    "Bed",
-    "Furniture",
-]
-OFFSETS_TYPES_LOWER = [
-    "",
-    "bed",
-    "furniture",
-]
 
 # These numerical values must match the settings defined
 # in the SexLab Framework's sslAnimationFactory script.
@@ -138,12 +119,6 @@ KNOWN_RACES_LOWER = dict((k.lower(), v) for k, v in KNOWN_RACES.items())
 class Stage(object):
     def __init__(self, number, **kwargs):
         self.number = number
-        self.kwargs = kwargs
-
-
-class AnimOffsets(object):
-    def __init__(self, type, **kwargs):
-        self.type = type
         self.kwargs = kwargs
 
 
@@ -261,7 +236,6 @@ class Category(object):
             "anim_name_prefix": cat.set_anim_name_prefix,
             "common_tags": cat.set_common_tags,
             "Stage": Stage,
-            "AnimOffsets": AnimOffsets,
             "Female": Female,
             "Male": Male,
             "CreatureFemale": CreatureFemale,
@@ -276,8 +250,6 @@ class Category(object):
                 global_vars["NoSound"] = sound
             else:
                 global_vars[sound] = sound
-        for animoffsets_type in OFFSETS_TYPES:
-            global_vars[animoffsets_type] = animoffsets_type
         for cum_type in CUM_TYPES.keys():
             global_vars[cum_type] = cum_type
         exec(code, global_vars, local_vars)
@@ -289,7 +261,6 @@ class Category(object):
         cat.is_example = local_vars.get("is_example", False)
 
         cat.load_stages()
-        cat.load_animoffsets()
         cat.anim_errors = sum(1 for a in cat.anims if a.errors)
 
         cat.gen_data()
@@ -425,11 +396,6 @@ class Category(object):
         for anim in self.anims:
             anim.load_stages(dir_caches)
 
-    def load_animoffsets(self):
-        dir_caches = {}
-        for anim in self.anims:
-            anim.load_animoffsets(dir_caches)
-
     def gen_json_dict(self):
         anims = []
         for anim in self.anims:
@@ -556,7 +522,7 @@ class AnimInfo(object):
             # TODO: This is okay if a sound is explicitly specified
             # for each stage
             self.error("no animation sound specified")
-        elif self.sound.lower() not in VALID_SOUNDS_LOWER:
+        elif self.sound not in VALID_SOUNDS:
             self.error("invalid sound {!r}: must be one of {}",
                        self.sound, ", ".join(VALID_SOUNDS))
 
@@ -603,10 +569,6 @@ class AnimInfo(object):
         stage_params_arg = kwargs.pop("stage_params", None)
         self.stage_params = self._parse_stage_params(stage_params_arg)
 
-        # Parse animoffsets_params
-        animoffsets_params_arg = kwargs.pop("animoffsets_params", None)
-        self.animoffsets_params = self._parse_animoffsets_params(animoffsets_params_arg)
-
         if kwargs:
             self.error("unsupported arguments: {}", "," .join(kwargs.keys()))
 
@@ -639,7 +601,7 @@ class AnimInfo(object):
         # Validate the sound types
         for sp in parsed.values():
             sp_sound = sp.get("sound")
-            if sp_sound is not None and sp_sound.lower() not in VALID_SOUNDS_LOWER:
+            if sp_sound is not None and sp_sound not in VALID_SOUNDS:
                 self.error("invalid sound {!r}: must be one of {}",
                            self.sound, ", ".join(VALID_SOUNDS))
 
@@ -670,31 +632,6 @@ class AnimInfo(object):
                 self.error("invalid stage number {} in stage_params",
                            stage_num)
 
-    def _parse_animoffsets_params(self, animoffsets_params):
-        VALID_ARGS = {
-            "forward": float,
-			"side": float,
-			"up": float,
-			"rotate": float,
-        }
-
-        parsed = _parse_animoffsets_params(animoffsets_params, VALID_ARGS,
-                                     on_error=self.error)
-
-        return parsed
-
-    def load_animoffsets(self, dir_caches):
-        if not self.animoffsets_params:
-            return
-
-        for animoffsets_type in self.animoffsets_params.keys():
-            if animoffsets_type is None:
-                # TODO: This will be considered as type "Bed"
-                self.error("no animoffsets type specified")
-            elif animoffsets_type.lower() not in OFFSETS_TYPES_LOWER:
-                self.error("invalid animoffsets type {!r}: must be one of {}",
-                           animoffsets_type, ", ".join(OFFSETS_TYPES))
-
     def gen_json_dict(self):
         actor_data = []
         for actor in self.actors:
@@ -720,13 +657,6 @@ class AnimInfo(object):
                 json_info['number'] = stage_num
                 sp.append(json_info)
             d["stages"] = sp
-        if self.animoffsets_params:
-            aop = []
-            for animoffsets_type, info in self.animoffsets_params.items():
-                json_info = info.copy()
-                json_info['type'] = animoffsets_type
-                aop.append(json_info)
-            d["animoffsets"] = aop
         return d
 
     def gen_fnis_lines(self):
@@ -738,21 +668,6 @@ class AnimInfo(object):
                 lines_by_path[fnis_path] = lines
             else:
                 lines = lines_by_path[fnis_path]
-            if actor.anim.creature_race is not None and actor.anim.creature_race.lower() == "canines":
-                fnis_path = actor.get_fnis_dog_list_path()
-                if fnis_path not in lines_by_path:
-                    doglines = ["' {}".format(self.id)]
-                    lines_by_path[fnis_path] = doglines
-                else:
-                    doglines = lines_by_path[fnis_path]
-                fnis_path = actor.get_fnis_wolf_list_path()
-                if fnis_path not in lines_by_path:
-                    wolflines = ["' {}".format(self.id)]
-                    lines_by_path[fnis_path] = wolflines
-                else:
-                    wolflines = lines_by_path[fnis_path]
-                doglines.extend(actor.gen_fnis_lines())
-                wolflines.extend(actor.gen_fnis_lines())
 
             lines.extend(actor.gen_fnis_lines())
 
@@ -769,8 +684,6 @@ class ActorInfo(object):
         "open_mouth": bool,
         "strap_on": bool,
         "sos": int,
-        "add_cum": str,
-        "cumsrc": int,
         # MY EDIT
         "object": str,     # For FNIS only, NOT a Sexlab parameter. Must be removed for json export
         "animvars": str,   # For FNIS only, NOT a Sexlab parameter. Must be removed for json export
@@ -847,14 +760,6 @@ class ActorInfo(object):
         # MY EDIT - look through every stage, and if they have a per-stage parameter that already exists as a 'global' actor
         #           parameter, then just remove it.
         for stagenum in self.stage_params:
-            cum_type = self.stage_params[stagenum].pop("add_cum", None)
-            if cum_type is not None:
-                stage_cum = CUM_TYPES_LOWER.get(cum_type.lower())
-                if stage_cum is not None:
-                    self.stage_params[stagenum]["add_cum"] = stage_cum
-                else:
-                    self.error("invalid cum type {!r}: must be one of {}",
-                               cum_type, ", ".join(CUM_TYPES.keys()))
             if self.object_name:
                 self.stage_params[stagenum].pop("object", None)
             if self.animvars:
@@ -926,51 +831,8 @@ class ActorInfo(object):
     def get_fnis_list_path(self):
         fnis_dir = self.get_anim_dir()
         race_name = fnis_dir.split(os.path.sep)[-3]
-        creature_race = self.anim.creature_race
         if race_name.lower() == "character":
             entry = "FNIS_{}_List.txt".format(self.anim.anim_dir)
-        elif creature_race.lower() == "foxes":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "wolves":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "dogs":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "dog")
-        else:
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, race_name)
-        return os.path.join(fnis_dir, entry)
-
-    def get_fnis_dog_list_path(self):
-        fnis_dir = self.get_anim_dir()
-        race_name = fnis_dir.split(os.path.sep)[-3]
-        creature_race = self.anim.creature_race
-        if race_name.lower() == "character":
-            entry = "FNIS_{}_List.txt".format(self.anim.anim_dir)
-        elif race_name.lower() == "canine":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "dog")
-        elif creature_race.lower() == "foxes":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "wolves":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "dogs":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "dog")
-        else:
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, race_name)
-        return os.path.join(fnis_dir, entry)
-
-    def get_fnis_wolf_list_path(self):
-        fnis_dir = self.get_anim_dir()
-        race_name = fnis_dir.split(os.path.sep)[-3]
-        creature_race = self.anim.creature_race
-        if race_name.lower() == "character":
-            entry = "FNIS_{}_List.txt".format(self.anim.anim_dir)
-        elif race_name.lower() == "canine":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "foxes":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "wolves":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "wolf")
-        elif creature_race.lower() == "dogs":
-            entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, "dog")
         else:
             entry = "FNIS_{}_{}_List.txt".format(self.anim.anim_dir, race_name)
         return os.path.join(fnis_dir, entry)
@@ -1130,44 +992,6 @@ def _parse_stage_args(kwargs, valid_args, on_error):
             allowed_types = type
         if not isinstance(value, allowed_types):
             on_error("invalid value for stage param {!r}: "
-                    "got {!r}, expected a {}",
-                    name, value, type.__name__)
-        d[name] = value
-    return d
-
-def _parse_animoffsets_params(animoffsets_params, valid_args, on_error):
-    if not animoffsets_params:
-        return {}
-
-    parsed = {}
-    for aop in animoffsets_params:
-        if not isinstance(aop, AnimOffsets):
-            on_error("expected a AnimOffsets() object")
-            continue
-        animoffsets_info = _parse_animoffsets_args(aop.kwargs, valid_args, on_error)
-        if not animoffsets_info:
-            # This is just a sanity check.  There's no point specifying
-            # AnimOffsets() with no arguments other than a type.
-            on_error("empty animoffsets parameters for animoffsets {}", aop.type)
-        parsed[aop.type] = animoffsets_info
-        if aop.kwargs:
-            on_error("unsupported arguments: {}", ", ".join(kwargs.keys()))
-
-    return parsed
-
-def _parse_animoffsets_args(kwargs, valid_args, on_error):
-    d = {}
-    for name, type in valid_args.items():
-        if name not in kwargs:
-            continue
-        value = kwargs.pop(name)
-        if type == float:
-            # Also allow integers in float fields
-            allowed_types = (float, int)
-        else:
-            allowed_types = type
-        if not isinstance(value, allowed_types):
-            on_error("invalid value for animoffsets param {!r}: "
                     "got {!r}, expected a {}",
                     name, value, type.__name__)
         d[name] = value
